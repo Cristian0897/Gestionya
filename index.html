@@ -10,15 +10,44 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .day {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 40px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            position: relative;
+        }
+        .day:hover {
+            background-color: #f3f4f6;
+        }
+        .day.selected {
+            background-color: #d1e5ff;
+            font-weight: 600;
+            border-radius: 9999px;
+        }
+        .day.current-day {
+            background-color: #60a5fa;
+            color: white;
+            font-weight: 600;
+            border-radius: 9999px;
+        }
+        .day.empty {
+            cursor: default;
+        }
+        .day.empty:hover {
+            background-color: transparent;
+        }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
 
     <!-- Contenedor Principal -->
-    <div id="main-container" class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
+    <div id="main-container" class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-2xl">
 
         <!-- Pantalla de Carga -->
-        <div id="loading-screen" class="flex flex-col items-center justify-center">
+        <div id="loading-screen" class="flex flex-col items-center justify-center h-[50vh]">
             <svg class="animate-spin h-10 w-10 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -30,12 +59,25 @@
         <div id="auth-screen" class="hidden">
             <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Acceder</h1>
             <p id="error-message" class="text-red-500 text-center mb-4 hidden"></p>
+            <p id="info-message" class="text-blue-500 text-center mb-4 hidden"></p>
             <div id="auth-form">
                 <input type="email" id="email-input" placeholder="Correo electrónico" class="w-full p-3 mb-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <input type="password" id="password-input" placeholder="Contraseña" class="w-full p-3 mb-6 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <button id="signup-button" class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition duration-300 mb-3">Registrarse</button>
                 <button id="signin-button" class="w-full bg-gray-500 text-white font-semibold py-3 rounded-lg hover:bg-gray-600 transition duration-300">Ingresar</button>
+                <button id="forgot-password-button" class="mt-4 text-sm text-blue-600 hover:text-blue-800 transition duration-300">¿Olvidaste tu contraseña?</button>
+                <button id="guest-button" class="w-full mt-6 bg-green-600 text-white font-semibold py-3 rounded-lg hover:bg-green-700 transition duration-300">Modo Invitado (Modo Lector)</button>
             </div>
+        </div>
+        
+        <!-- Pantalla de Bienvenida y Configuración de Áreas -->
+        <div id="welcome-screen" class="hidden flex flex-col items-center justify-center p-8 text-center">
+            <h1 class="text-3xl font-bold text-gray-800 mb-4">¡Bienvenido!</h1>
+            <p class="text-gray-600 mb-6">Para empezar, elige las áreas de tareas con las que te gustaría trabajar. Siempre podrás añadir más tarde.</p>
+            <div id="initial-areas-list" class="flex flex-wrap justify-center gap-2 mb-6">
+                <!-- Áreas iniciales se renderizarán aquí -->
+            </div>
+            <button id="start-app-button" class="bg-blue-600 text-white font-semibold py-3 px-8 rounded-full hover:bg-blue-700 transition duration-300">Empezar</button>
         </div>
 
         <!-- Pantalla de la Aplicación -->
@@ -44,24 +86,94 @@
                 <h1 class="text-3xl font-bold text-gray-800">Mis Tareas</h1>
                 <button id="signout-button" class="text-sm text-gray-500 hover:text-red-500 transition duration-300">Cerrar sesión</button>
             </div>
-            <div class="flex mb-6">
-                <input type="text" id="task-input" placeholder="Escribe una nueva tarea..." class="flex-1 p-3 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <button id="add-task-button" class="bg-blue-600 text-white font-semibold px-6 py-3 rounded-r-lg hover:bg-blue-700 transition duration-300" disabled>Agregar</button>
+            <p id="app-info-message" class="text-center text-blue-500 mb-4 hidden"></p>
+            
+            <!-- Navegación de Vistas -->
+            <div class="flex mb-6 space-x-2">
+                <button id="calendar-button" class="flex-1 py-2 px-4 rounded-full font-semibold bg-blue-600 text-white transition-colors duration-200">Calendario</button>
+                <button id="stats-button" class="flex-1 py-2 px-4 rounded-full font-semibold bg-gray-200 text-gray-800 transition-colors duration-200">Estadísticas</button>
             </div>
-            <ul id="task-list" class="space-y-4">
-                <!-- Las tareas se renderizarán aquí -->
-            </ul>
-        </div>
 
+            <!-- Vista de Calendario y Tareas -->
+            <div id="calendar-view-container">
+                <!-- Calendario -->
+                <div id="calendar-container" class="mb-8">
+                    <div class="flex items-center justify-between py-2 px-4 bg-gray-100 rounded-t-lg">
+                        <button id="prev-month" class="text-gray-600 hover:text-gray-800 transition duration-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        <h2 id="current-month-year" class="text-lg font-semibold text-gray-800"></h2>
+                        <button id="next-month" class="text-gray-600 hover:text-gray-800 transition duration-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-7 text-center font-medium text-gray-500 text-sm mt-2">
+                        <div>Dom</div>
+                        <div>Lun</div>
+                        <div>Mar</div>
+                        <div>Mié</div>
+                        <div>Jue</div>
+                        <div>Vie</div>
+                        <div>Sáb</div>
+                    </div>
+                    <div id="days-grid" class="grid grid-cols-7 gap-1 mt-2">
+                        <!-- Los días se renderizarán aquí -->
+                    </div>
+                </div>
+
+                <!-- Tareas -->
+                <div id="tasks-container">
+                    <h2 id="tasks-header" class="text-2xl font-bold text-gray-700 mb-4">Tareas para: <span id="selected-date-display"></span></h2>
+                    <div class="flex flex-col md:flex-row mb-6 gap-2">
+                        <input type="text" id="task-input" placeholder="Escribe una nueva tarea..." class="flex-1 p-3 border border-gray-300 rounded-lg md:rounded-l-lg md:rounded-r-none focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <select id="area-select" class="p-3 border border-gray-300 rounded-lg md:rounded-l-none md:rounded-r-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <!-- Opciones de área se renderizarán aquí -->
+                        </select>
+                        <button id="add-task-button" class="bg-blue-600 text-white font-semibold px-6 py-3 rounded-lg md:rounded-r-lg md:rounded-l-none hover:bg-blue-700 transition duration-300" disabled>Agregar</button>
+                    </div>
+                    <ul id="task-list" class="space-y-4">
+                        <!-- Las tareas se renderizarán aquí -->
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Vista de Estadísticas -->
+            <div id="stats-view-container" class="hidden">
+                <h2 class="text-2xl font-bold text-gray-700 mb-4">Progreso por Área</h2>
+                <div id="stats-list" class="space-y-4">
+                    <!-- Las estadísticas se renderizarán aquí -->
+                </div>
+            </div>
+            
+            <!-- Botón de Administrador (visible solo para el admin) -->
+            <button id="admin-button" class="hidden mt-6 w-full py-3 px-6 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition duration-300">Panel de Administrador</button>
+        </div>
+        
+        <!-- Panel de Administrador de Áreas -->
+        <div id="admin-view-container" class="hidden p-8 rounded-2xl shadow-xl w-full max-w-2xl bg-white">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Gestionar Áreas (Admin)</h2>
+            <div class="flex mb-4 gap-2">
+                <input type="text" id="new-area-input" placeholder="Nombre de la nueva área" class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                <button id="add-area-button" class="bg-purple-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-purple-700 transition duration-300">Añadir</button>
+            </div>
+            <ul id="admin-areas-list" class="space-y-2">
+                <!-- Lista de áreas de administrador se renderizará aquí -->
+            </ul>
+            <button id="back-to-app-button" class="mt-6 w-full py-3 px-6 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition duration-300">Volver a la App</button>
+        </div>
     </div>
 
     <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendEmailVerification, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, getDocs, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase Configuration - Copia de tu proyecto
+        // Firebase Configuration
         const firebaseConfig = {
           apiKey: "AIzaSyAA6qeaRdx6143a-d3MkcptTpY6CbGafr4",
           authDomain: "gestionya-d2766.firebaseapp.com",
@@ -71,7 +183,10 @@
           appId: "1:941592593495:web:9ebf1183b6ecec70decf12",
           measurementId: "G-LLHSFZ1172"
         };
-        const appId = "default-app-id"; // Puedes cambiar esto si tu app lo requiere, pero para las reglas actuales no es necesario.
+        const appId = "default-app-id";
+        
+        // --- ID de Usuario Administrador (IMPORTANTE: Cambia este ID por el tuyo para acceder al panel de admin) ---
+        const adminUserId = "gL47tC8Yh3Y21c6F6jP7o8f7R8t2";
 
         // --- Firebase Initialization ---
         const app = initializeApp(firebaseConfig);
@@ -80,6 +195,7 @@
 
         // --- DOM Elements ---
         const authScreen = document.getElementById('auth-screen');
+        const welcomeScreen = document.getElementById('welcome-screen');
         const appScreen = document.getElementById('app-screen');
         const loadingScreen = document.getElementById('loading-screen');
         const emailInput = document.getElementById('email-input');
@@ -87,17 +203,63 @@
         const signupButton = document.getElementById('signup-button');
         const signinButton = document.getElementById('signin-button');
         const signoutButton = document.getElementById('signout-button');
+        const forgotPasswordButton = document.getElementById('forgot-password-button');
+        const guestButton = document.getElementById('guest-button');
         const taskInput = document.getElementById('task-input');
+        const areaSelect = document.getElementById('area-select');
         const addTaskButton = document.getElementById('add-task-button');
         const taskList = document.getElementById('task-list');
         const errorMessage = document.getElementById('error-message');
+        const infoMessage = document.getElementById('info-message');
+        const appInfoMessage = document.getElementById('app-info-message');
+
+        const currentMonthYear = document.getElementById('current-month-year');
+        const prevMonthButton = document.getElementById('prev-month');
+        const nextMonthButton = document.getElementById('next-month');
+        const daysGrid = document.getElementById('days-grid');
+        const selectedDateDisplay = document.getElementById('selected-date-display');
+        
+        const calendarButton = document.getElementById('calendar-button');
+        const statsButton = document.getElementById('stats-button');
+        const calendarViewContainer = document.getElementById('calendar-view-container');
+        const statsViewContainer = document.getElementById('stats-view-container');
+        const statsList = document.getElementById('stats-list');
+        
+        const initialAreasList = document.getElementById('initial-areas-list');
+        const startAppButton = document.getElementById('start-app-button');
+
+        const adminButton = document.getElementById('admin-button');
+        const adminViewContainer = document.getElementById('admin-view-container');
+        const newAreaInput = document.getElementById('new-area-input');
+        const addAreaButton = document.getElementById('add-area-button');
+        const adminAreasList = document.getElementById('admin-areas-list');
+        const backToAppButton = document.getElementById('back-to-app-button');
 
         let userId = null;
+        let allTasks = [];
+        let userAreas = [];
+        let adminAreas = [];
+        let currentDate = new Date();
+        let selectedDate = new Date();
 
-        // --- Helper Function to Display Error Messages ---
+        const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+        // --- Helper Function to Display Messages ---
         function displayError(message) {
             errorMessage.textContent = message;
             errorMessage.classList.remove('hidden');
+            infoMessage.classList.add('hidden');
+        }
+
+        function displayInfo(message) {
+            infoMessage.textContent = message;
+            infoMessage.classList.remove('hidden');
+            errorMessage.classList.add('hidden');
+        }
+
+        function displayAppInfo(message) {
+            appInfoMessage.textContent = message;
+            appInfoMessage.classList.remove('hidden');
         }
 
         // --- Authentication Functions ---
@@ -105,8 +267,10 @@
             try {
                 const email = emailInput.value;
                 const password = passwordInput.value;
-                await createUserWithEmailAndPassword(auth, email, password);
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                await sendEmailVerification(userCredential.user);
                 console.log("Usuario registrado con éxito.");
+                displayInfo("Usuario registrado. Por favor, revisa tu correo para verificar tu cuenta.");
             } catch (error) {
                 console.error("Error al registrar el usuario:", error.message);
                 if (error.code === 'auth/weak-password') {
@@ -133,6 +297,31 @@
             }
         }
 
+        async function handleForgotPassword() {
+            const email = emailInput.value;
+            if (!email) {
+                displayError("Por favor, introduce tu correo electrónico.");
+                return;
+            }
+            try {
+                await sendPasswordResetEmail(auth, email);
+                displayInfo("Si tu correo está registrado, recibirás un enlace para restablecer tu contraseña.");
+            } catch (error) {
+                console.error("Error al enviar el correo de recuperación:", error.message);
+                displayError("Error al enviar el correo. Por favor, inténtalo de nuevo.");
+            }
+        }
+
+        async function handleGuestSignIn() {
+            try {
+                await signInAnonymously(auth);
+                console.log("Ingreso en modo invitado con éxito.");
+            } catch (error) {
+                console.error("Error al ingresar en modo invitado:", error.message);
+                displayError("Error al ingresar en modo invitado. Inténtalo de nuevo.");
+            }
+        }
+
         async function handleSignOut() {
             try {
                 await signOut(auth);
@@ -146,12 +335,12 @@
         async function addTask() {
             if (taskInput.value.trim() === "" || !userId) return;
             try {
-                const docRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/tasks`), {
+                await addDoc(collection(db, `artifacts/${appId}/users/${userId}/tasks`), {
                     text: taskInput.value,
+                    area: areaSelect.value,
                     completed: false,
                     createdAt: new Date()
                 });
-                console.log("Tarea agregada con ID: ", docRef.id);
                 taskInput.value = "";
             } catch (error) {
                 console.error("Error al agregar la tarea:", error);
@@ -165,7 +354,6 @@
                 await updateDoc(taskRef, {
                     completed: !completed
                 });
-                console.log("Tarea actualizada:", taskId);
             } catch (error) {
                 console.error("Error al actualizar la tarea:", error);
             }
@@ -176,76 +364,384 @@
             try {
                 const taskRef = doc(db, `artifacts/${appId}/users/${userId}/tasks`, taskId);
                 await deleteDoc(taskRef);
-                console.log("Tarea eliminada:", taskId);
             } catch (error) {
                 console.error("Error al eliminar la tarea:", error);
             }
         }
+        
+        // --- Functions for Area Management ---
+        async function saveInitialAreas() {
+            const selectedAreas = Array.from(initialAreasList.querySelectorAll('button.selected')).map(btn => btn.dataset.area);
+            if (selectedAreas.length === 0) {
+                displayError("Por favor, selecciona al menos una área.");
+                return;
+            }
+            try {
+                // Guarda las áreas seleccionadas por el usuario en su perfil
+                await setDoc(doc(db, `artifacts/${appId}/users/${userId}/profile/areas`), { areas: selectedAreas });
+                
+                // Marca al usuario como no-nuevo para la próxima vez
+                await setDoc(doc(db, `artifacts/${appId}/users/${userId}/profile/status`), { newUser: false });
+                
+                // Inicia la aplicación principal
+                loadApp(auth.currentUser);
+            } catch (error) {
+                console.error("Error al guardar las áreas iniciales:", error);
+                displayError("Error al guardar las áreas.");
+            }
+        }
+
+        async function addAdminArea() {
+            const areaName = newAreaInput.value.trim();
+            if (areaName === "") return;
+            try {
+                await addDoc(collection(db, `artifacts/${appId}/public/data/admin_areas`), { name: areaName });
+                newAreaInput.value = "";
+            } catch (error) {
+                console.error("Error al añadir área de admin:", error);
+            }
+        }
+
+        async function deleteAdminArea(areaId) {
+            try {
+                await deleteDoc(doc(db, `artifacts/${appId}/public/data/admin_areas`, areaId));
+            } catch (error) {
+                console.error("Error al eliminar área de admin:", error);
+            }
+        }
 
         // --- UI Rendering ---
-        function renderTasks(tasks) {
+        function renderCalendar() {
+            const today = new Date();
+            currentMonthYear.textContent = `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+            daysGrid.innerHTML = '';
+            
+            const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
+            const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+
+            for (let i = 0; i < firstDayOfMonth; i++) {
+                const emptyDay = document.createElement('div');
+                emptyDay.className = 'day empty';
+                daysGrid.appendChild(emptyDay);
+            }
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayEl = document.createElement('div');
+                dayEl.className = 'day';
+                dayEl.textContent = day;
+                dayEl.dataset.day = day;
+
+                const dayDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+                
+                if (dayDate.toDateString() === today.toDateString()) {
+                    dayEl.classList.add('current-day');
+                }
+                
+                if (dayDate.toDateString() === selectedDate.toDateString()) {
+                    dayEl.classList.add('selected');
+                }
+
+                dayEl.addEventListener('click', () => {
+                    selectedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+                    renderCalendar(); 
+                    renderFilteredTasks(auth.currentUser?.isAnonymous);
+                });
+
+                daysGrid.appendChild(dayEl);
+            }
+        }
+
+        function renderFilteredTasks(isReadOnly) {
+            selectedDateDisplay.textContent = selectedDate.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            
+            const filteredTasks = allTasks.filter(task => {
+                if (task.createdAt && task.createdAt.seconds) {
+                    const taskDate = new Date(task.createdAt.seconds * 1000);
+                    return taskDate.toDateString() === selectedDate.toDateString();
+                }
+                return false;
+            });
+            
             taskList.innerHTML = '';
-            tasks.forEach(task => {
+            if (filteredTasks.length === 0 && !isReadOnly) {
+                taskList.innerHTML = '<li class="text-center text-gray-500">No hay tareas para este día. ¡Agrega una!</li>';
+            } else if (filteredTasks.length === 0 && isReadOnly) {
+                taskList.innerHTML = '<li class="text-center text-gray-500">No hay tareas públicas para este día.</li>';
+            }
+            
+            filteredTasks.forEach(task => {
                 const li = document.createElement('li');
                 li.className = `flex items-center justify-between p-4 rounded-lg shadow-sm border border-gray-200 transition-all duration-200 ease-in-out ${task.completed ? 'bg-gray-100 line-through text-gray-400' : 'bg-white'}`;
                 li.innerHTML = `
                     <div class="flex items-center flex-1">
-                        <input type="checkbox" class="h-5 w-5 rounded-full text-blue-600 focus:ring-blue-500" ${task.completed ? 'checked' : ''}>
+                        <input type="checkbox" class="h-5 w-5 rounded-full text-blue-600 focus:ring-blue-500" ${task.completed ? 'checked' : ''} ${isReadOnly ? 'disabled' : ''}>
                         <span class="ml-4 flex-1 break-words">${task.text}</span>
+                        ${task.area ? `<span class="ml-4 text-xs font-semibold text-gray-400 bg-gray-200 px-2 py-1 rounded-full">${task.area}</span>` : ''}
                     </div>
-                    <button class="delete-button text-red-500 hover:text-red-700 transition duration-300 ml-4">
+                    <button class="delete-button text-red-500 hover:text-red-700 transition duration-300 ml-4 ${isReadOnly ? 'hidden' : ''}">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 11-2 0v6a1 1 0 112 0V8z" clip-rule="evenodd" />
                         </svg>
                     </button>
                 `;
-                li.querySelector('input[type="checkbox"]').addEventListener('change', () => toggleTask(task.id, task.completed));
-                li.querySelector('.delete-button').addEventListener('click', () => deleteTask(task.id));
+                if (!isReadOnly) {
+                    li.querySelector('input[type="checkbox"]').addEventListener('change', () => toggleTask(task.id, task.completed));
+                    li.querySelector('.delete-button').addEventListener('click', () => deleteTask(task.id));
+                }
                 taskList.appendChild(li);
             });
+        }
+        
+        function renderStats() {
+            statsList.innerHTML = '';
+            const stats = {};
+            
+            allTasks.forEach(task => {
+                const area = task.area || 'Sin Área';
+                if (!stats[area]) {
+                    stats[area] = { total: 0, completed: 0 };
+                }
+                stats[area].total++;
+                if (task.completed) {
+                    stats[area].completed++;
+                }
+            });
+            
+            const areas = Object.keys(stats).sort();
+            
+            if (areas.length === 0) {
+                statsList.innerHTML = `<p class="text-center text-gray-500">No hay tareas con áreas para mostrar estadísticas.</p>`;
+                return;
+            }
+
+            areas.forEach(area => {
+                const total = stats[area].total;
+                const completed = stats[area].completed;
+                const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+                const areaItem = document.createElement('div');
+                areaItem.className = 'bg-gray-50 p-4 rounded-lg shadow-sm';
+                areaItem.innerHTML = `
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-lg font-semibold text-gray-700">${area}</span>
+                        <span class="text-sm text-gray-500">${completed} de ${total} (${percentage}%)</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                        <div class="bg-blue-600 h-2.5 rounded-full" style="width: ${percentage}%"></div>
+                    </div>
+                `;
+                statsList.appendChild(areaItem);
+            });
+        }
+
+        function renderAreaSelect() {
+            areaSelect.innerHTML = '';
+            userAreas.forEach(area => {
+                const option = document.createElement('option');
+                option.value = area;
+                option.textContent = area;
+                areaSelect.appendChild(option);
+            });
+        }
+        
+        function renderInitialAreas() {
+            initialAreasList.innerHTML = '';
+            adminAreas.forEach(area => {
+                const button = document.createElement('button');
+                button.textContent = area;
+                button.dataset.area = area;
+                button.className = 'px-4 py-2 rounded-full border border-gray-300 text-gray-700 hover:bg-blue-100 transition-colors duration-200';
+                button.addEventListener('click', () => {
+                    button.classList.toggle('selected');
+                    button.classList.toggle('bg-blue-500');
+                    button.classList.toggle('text-white');
+                    button.classList.toggle('text-gray-700');
+                    button.classList.toggle('border-gray-300');
+                });
+                initialAreasList.appendChild(button);
+            });
+        }
+
+        function renderAdminAreas() {
+            adminAreasList.innerHTML = '';
+            adminAreas.forEach(area => {
+                const li = document.createElement('li');
+                li.className = 'flex justify-between items-center p-2 bg-gray-100 rounded-lg';
+                li.innerHTML = `
+                    <span>${area}</span>
+                    <button class="delete-area-button text-red-500 hover:text-red-700 transition duration-300" data-area="${area}">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 11-2 0v6a1 1 0 112 0V8z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                `;
+                li.querySelector('.delete-area-button').addEventListener('click', () => deleteAdminArea(area));
+                adminAreasList.appendChild(li);
+            });
+        }
+
+        // --- View Switching ---
+        function showCalendarView() {
+            calendarButton.classList.add('bg-blue-600', 'text-white');
+            calendarButton.classList.remove('bg-gray-200', 'text-gray-800');
+            statsButton.classList.add('bg-gray-200', 'text-gray-800');
+            statsButton.classList.remove('bg-blue-600', 'text-white');
+            calendarViewContainer.classList.remove('hidden');
+            statsViewContainer.classList.add('hidden');
+        }
+
+        function showStatsView() {
+            statsButton.classList.add('bg-blue-600', 'text-white');
+            statsButton.classList.remove('bg-gray-200', 'text-gray-800');
+            calendarButton.classList.add('bg-gray-200', 'text-gray-800');
+            calendarButton.classList.remove('bg-blue-600', 'text-white');
+            calendarViewContainer.classList.add('hidden');
+            statsViewContainer.classList.remove('hidden');
+            renderStats();
+        }
+
+        function showAdminView() {
+            appScreen.classList.add('hidden');
+            adminViewContainer.classList.remove('hidden');
+        }
+
+        function showAppView() {
+            adminViewContainer.classList.add('hidden');
+            appScreen.classList.remove('hidden');
+        }
+
+        async function loadApp(user) {
+            userId = user.uid;
+            
+            // Si es invitado, cargar tareas públicas y no permitir editar
+            if (user.isAnonymous) {
+                appInfoMessage.textContent = "Estás en modo invitado. Solo puedes ver las tareas.";
+                taskInput.disabled = true;
+                areaSelect.disabled = true;
+                addTaskButton.disabled = true;
+                
+                // Cargar tareas públicas
+                onSnapshot(collection(db, `artifacts/${appId}/public/data/guest_tasks`), (querySnapshot) => {
+                    allTasks = [];
+                    querySnapshot.forEach((doc) => allTasks.push({ id: doc.id, ...doc.data() }));
+                    renderFilteredTasks(true);
+                    renderStats();
+                });
+                
+                // Las áreas públicas son las áreas de admin
+                onSnapshot(collection(db, `artifacts/${appId}/public/data/admin_areas`), (querySnapshot) => {
+                    userAreas = [];
+                    querySnapshot.forEach(doc => userAreas.push(doc.data().name));
+                    renderAreaSelect();
+                });
+                
+            } else {
+                // Si es un usuario registrado
+                appInfoMessage.textContent = "";
+                taskInput.disabled = false;
+                areaSelect.disabled = false;
+                addTaskButton.disabled = false;
+
+                // Cargar tareas del usuario
+                onSnapshot(collection(db, `artifacts/${appId}/users/${userId}/tasks`), (querySnapshot) => {
+                    allTasks = [];
+                    querySnapshot.forEach((doc) => allTasks.push({ id: doc.id, ...doc.data() }));
+                    renderFilteredTasks(false);
+                    renderStats();
+                });
+
+                // Cargar áreas del usuario
+                onSnapshot(doc(db, `artifacts/${appId}/users/${userId}/profile/areas`), (docSnap) => {
+                    if (docSnap.exists() && docSnap.data().areas) {
+                        userAreas = docSnap.data().areas;
+                        renderAreaSelect();
+                    }
+                });
+                
+                // Si es el admin, mostrar el botón de admin
+                if (userId === adminUserId) {
+                    adminButton.classList.remove('hidden');
+                    onSnapshot(collection(db, `artifacts/${appId}/public/data/admin_areas`), (querySnapshot) => {
+                        adminAreas = [];
+                        querySnapshot.forEach((doc) => adminAreas.push(doc.data().name));
+                        renderAdminAreas();
+                        renderInitialAreas();
+                    });
+                } else {
+                    adminButton.classList.add('hidden');
+                    // Cargar áreas de admin para la pantalla de bienvenida
+                    onSnapshot(collection(db, `artifacts/${appId}/public/data/admin_areas`), (querySnapshot) => {
+                        adminAreas = [];
+                        querySnapshot.forEach((doc) => adminAreas.push(doc.data().name));
+                    });
+                }
+            }
+            
+            showCalendarView();
+            renderCalendar();
         }
 
         // --- Event Listeners ---
         signupButton.addEventListener('click', handleSignUp);
         signinButton.addEventListener('click', handleSignIn);
         signoutButton.addEventListener('click', handleSignOut);
+        forgotPasswordButton.addEventListener('click', handleForgotPassword);
+        guestButton.addEventListener('click', handleGuestSignIn);
         addTaskButton.addEventListener('click', addTask);
-        taskInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                addTask();
-            }
-        });
+        taskInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addTask(); });
+
+        prevMonthButton.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() - 1); renderCalendar(); renderFilteredTasks(auth.currentUser?.isAnonymous); });
+        nextMonthButton.addEventListener('click', () => { currentDate.setMonth(currentDate.getMonth() + 1); renderCalendar(); renderFilteredTasks(auth.currentUser?.isAnonymous); });
+        
+        calendarButton.addEventListener('click', showCalendarView);
+        statsButton.addEventListener('click', showStatsView);
+        startAppButton.addEventListener('click', saveInitialAreas);
+        
+        adminButton.addEventListener('click', showAdminView);
+        addAreaButton.addEventListener('click', addAdminArea);
+        backToAppButton.addEventListener('click', showAppView);
 
         // --- Main Auth State Listener ---
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             loadingScreen.classList.add('hidden');
             if (user) {
-                // User is signed in
-                userId = user.uid;
-                authScreen.classList.add('hidden');
-                appScreen.classList.remove('hidden');
-                addTaskButton.disabled = false;
-                console.log("Usuario autenticado. ID:", userId);
-
-                // Setup real-time listener for tasks
-                const q = collection(db, `artifacts/${appId}/users/${userId}/tasks`);
-                onSnapshot(q, (querySnapshot) => {
-                    const tasks = [];
-                    querySnapshot.forEach((doc) => {
-                        tasks.push({ id: doc.id, ...doc.data() });
-                    });
-                    renderTasks(tasks);
-                }, (error) => {
-                    console.error("Error al escuchar cambios en Firestore:", error);
-                    displayError("Error al cargar las tareas.");
-                });
+                if (user.isAnonymous) {
+                    authScreen.classList.add('hidden');
+                    welcomeScreen.classList.add('hidden');
+                    appScreen.classList.remove('hidden');
+                    loadApp(user);
+                } else if (user.emailVerified) {
+                    // Check if the user has an 'areas' document
+                    const userAreasDoc = await getDocs(collection(db, `artifacts/${appId}/users/${user.uid}/profile/areas`));
+                    if (userAreasDoc.empty) {
+                        authScreen.classList.add('hidden');
+                        welcomeScreen.classList.remove('hidden');
+                        appScreen.classList.add('hidden');
+                        
+                        // Cargar áreas de admin para la pantalla de bienvenida
+                        onSnapshot(collection(db, `artifacts/${appId}/public/data/admin_areas`), (querySnapshot) => {
+                            adminAreas = [];
+                            querySnapshot.forEach(doc => adminAreas.push(doc.data().name));
+                            renderInitialAreas();
+                        });
+                    } else {
+                        authScreen.classList.add('hidden');
+                        welcomeScreen.classList.add('hidden');
+                        appScreen.classList.remove('hidden');
+                        loadApp(user);
+                    }
+                } else {
+                    authScreen.classList.remove('hidden');
+                    appScreen.classList.add('hidden');
+                    welcomeScreen.classList.add('hidden');
+                    displayInfo("Tu correo no está verificado. Por favor, revisa tu bandeja de entrada.");
+                }
             } else {
-                // User is signed out
                 userId = null;
                 appScreen.classList.add('hidden');
+                welcomeScreen.classList.add('hidden');
                 authScreen.classList.remove('hidden');
                 addTaskButton.disabled = true;
-                console.log("Usuario no autenticado.");
             }
         });
         
