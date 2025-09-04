@@ -61,10 +61,17 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Global variables provided by the environment
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        // Firebase Configuration - Copia de tu proyecto
+        const firebaseConfig = {
+          apiKey: "AIzaSyAA6qeaRdx6143a-d3MkcptTpY6CbGafr4",
+          authDomain: "gestionya-d2766.firebaseapp.com",
+          projectId: "gestionya-d2766",
+          storageBucket: "gestionya-d2766.firebasestorage.app",
+          messagingSenderId: "941592593495",
+          appId: "1:941592593495:web:9ebf1183b6ecec70decf12",
+          measurementId: "G-LLHSFZ1172"
+        };
+        const appId = "default-app-id"; // Puedes cambiar esto si tu app lo requiere, pero para las reglas actuales no es necesario.
 
         // --- Firebase Initialization ---
         const app = initializeApp(firebaseConfig);
