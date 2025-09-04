@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Tareas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- Contenedor Principal -->
+    <div id="main-container" class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
+
+        <!-- Pantalla de Carga -->
+        <div id="loading-screen" class="flex flex-col items-center justify-center">
+            <svg class="animate-spin h-10 w-10 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="mt-4 text-gray-600">Cargando...</p>
+        </div>
+
+        <!-- Pantalla de Autenticación -->
+        <div id="auth-screen" class="hidden">
+            <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Acceder</h1>
+            <p id="error-message" class="text-red-500 text-center mb-4 hidden"></p>
+            <div id="auth-form">
+                <input type="email" id="email-input" placeholder="Correo electrónico" class="w-full p-3 mb-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="password" id="password-input" placeholder="Contraseña" class="w-full p-3 mb-6 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button id="signup-button" class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition duration-300 mb-3">Registrarse</button>
+                <button id="signin-button" class="w-full bg-gray-500 text-white font-semibold py-3 rounded-lg hover:bg-gray-600 transition duration-300">Ingresar</button>
+            </div>
+        </div>
+
+        <!-- Pantalla de la Aplicación -->
+        <div id="app-screen" class="hidden">
+            <div class="flex items-center justify-between mb-6">
+                <h1 class="text-3xl font-bold text-gray-800">Mis Tareas</h1>
+                <button id="signout-button" class="text-sm text-gray-500 hover:text-red-500 transition duration-300">Cerrar sesión</button>
+            </div>
+            <div class="flex mb-6">
+                <input type="text" id="task-input" placeholder="Escribe una nueva tarea..." class="flex-1 p-3 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button id="add-task-button" class="bg-blue-600 text-white font-semibold px-6 py-3 rounded-r-lg hover:bg-blue-700 transition duration-300" disabled>Agregar</button>
+            </div>
+            <ul id="task-list" class="space-y-4">
+                <!-- Las tareas se renderizarán aquí -->
+            </ul>
+        </div>
+
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables provided by the environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // --- Firebase Initialization ---
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // --- DOM Elements ---
+        const authScreen = document.getElementById('auth-screen');
+        const appScreen = document.getElementById('app-screen');
+        const loadingScreen = document.getElementById('loading-screen');
+        const emailInput = document.getElementById('email-input');
+        const passwordInput = document.getElementById('password-input');
+        const signupButton = document.getElementById('signup-button');
+        const signinButton = document.getElementById('signin-button');
+        const signoutButton = document.getElementById('signout-button');
+        const taskInput = document.getElementById('task-input');
+        const addTaskButton = document.getElementById('add-task-button');
+        const taskList = document.getElementById('task-list');
+        const errorMessage = document.getElementById('error-message');
+
+        let userId = null;
+
+        // --- Helper Function to Display Error Messages ---
+        function displayError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.remove('hidden');
+        }
+
+        // --- Authentication Functions ---
+        async function handleSignUp() {
+            try {
+                const email = emailInput.value;
+                const password = passwordInput.value;
+                await createUserWithEmailAndPassword(auth, email, password);
+                console.log("Usuario registrado con éxito.");
+            } catch (error) {
+                console.error("Error al registrar el usuario:", error.message);
+                if (error.code === 'auth/weak-password') {
+                    displayError('La contraseña debe tener al menos 6 caracteres.');
+                } else if (error.code === 'auth/email-already-in-use') {
+                    displayError('Este correo ya está en uso.');
+                } else if (error.code === 'auth/invalid-email') {
+                    displayError('El formato del correo es inválido.');
+                } else {
+                    displayError('Error al registrar. Inténtalo de nuevo.');
+                }
+            }
+        }
+
+        async function handleSignIn() {
+            try {
+                const email = emailInput.value;
+                const password = passwordInput.value;
+                await signInWithEmailAndPassword(auth, email, password);
+                console.log("Usuario ingresado con éxito.");
+            } catch (error) {
+                console.error("Error al iniciar sesión:", error.message);
+                displayError('Correo o contraseña incorrectos.');
+            }
+        }
+
+        async function handleSignOut() {
+            try {
+                await signOut(auth);
+                console.log("Sesión cerrada con éxito.");
+            } catch (error) {
+                console.error("Error al cerrar sesión:", error.message);
+            }
+        }
+
+        // --- Firestore Functions ---
+        async function addTask() {
+            if (taskInput.value.trim() === "" || !userId) return;
+            try {
+                const docRef = await addDoc(collection(db, `artifacts/${appId}/users/${userId}/tasks`), {
+                    text: taskInput.value,
+                    completed: false,
+                    createdAt: new Date()
+                });
+                console.log("Tarea agregada con ID: ", docRef.id);
+                taskInput.value = "";
+            } catch (error) {
+                console.error("Error al agregar la tarea:", error);
+            }
+        }
+
+        async function toggleTask(taskId, completed) {
+            if (!userId) return;
+            try {
+                const taskRef = doc(db, `artifacts/${appId}/users/${userId}/tasks`, taskId);
+                await updateDoc(taskRef, {
+                    completed: !completed
+                });
+                console.log("Tarea actualizada:", taskId);
+            } catch (error) {
+                console.error("Error al actualizar la tarea:", error);
+            }
+        }
+
+        async function deleteTask(taskId) {
+            if (!userId) return;
+            try {
+                const taskRef = doc(db, `artifacts/${appId}/users/${userId}/tasks`, taskId);
+                await deleteDoc(taskRef);
+                console.log("Tarea eliminada:", taskId);
+            } catch (error) {
+                console.error("Error al eliminar la tarea:", error);
+            }
+        }
+
+        // --- UI Rendering ---
+        function renderTasks(tasks) {
+            taskList.innerHTML = '';
+            tasks.forEach(task => {
+                const li = document.createElement('li');
+                li.className = `flex items-center justify-between p-4 rounded-lg shadow-sm border border-gray-200 transition-all duration-200 ease-in-out ${task.completed ? 'bg-gray-100 line-through text-gray-400' : 'bg-white'}`;
+                li.innerHTML = `
+                    <div class="flex items-center flex-1">
+                        <input type="checkbox" class="h-5 w-5 rounded-full text-blue-600 focus:ring-blue-500" ${task.completed ? 'checked' : ''}>
+                        <span class="ml-4 flex-1 break-words">${task.text}</span>
+                    </div>
+                    <button class="delete-button text-red-500 hover:text-red-700 transition duration-300 ml-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 11-2 0v6a1 1 0 112 0V8z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                `;
+                li.querySelector('input[type="checkbox"]').addEventListener('change', () => toggleTask(task.id, task.completed));
+                li.querySelector('.delete-button').addEventListener('click', () => deleteTask(task.id));
+                taskList.appendChild(li);
+            });
+        }
+
+        // --- Event Listeners ---
+        signupButton.addEventListener('click', handleSignUp);
+        signinButton.addEventListener('click', handleSignIn);
+        signoutButton.addEventListener('click', handleSignOut);
+        addTaskButton.addEventListener('click', addTask);
+        taskInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                addTask();
+            }
+        });
+
+        // --- Main Auth State Listener ---
+        onAuthStateChanged(auth, (user) => {
+            loadingScreen.classList.add('hidden');
+            if (user) {
+                // User is signed in
+                userId = user.uid;
+                authScreen.classList.add('hidden');
+                appScreen.classList.remove('hidden');
+                addTaskButton.disabled = false;
+                console.log("Usuario autenticado. ID:", userId);
+
+                // Setup real-time listener for tasks
+                const q = collection(db, `artifacts/${appId}/users/${userId}/tasks`);
+                onSnapshot(q, (querySnapshot) => {
+                    const tasks = [];
+                    querySnapshot.forEach((doc) => {
+                        tasks.push({ id: doc.id, ...doc.data() });
+                    });
+                    renderTasks(tasks);
+                }, (error) => {
+                    console.error("Error al escuchar cambios en Firestore:", error);
+                    displayError("Error al cargar las tareas.");
+                });
+            } else {
+                // User is signed out
+                userId = null;
+                appScreen.classList.add('hidden');
+                authScreen.classList.remove('hidden');
+                addTaskButton.disabled = true;
+                console.log("Usuario no autenticado.");
+            }
+        });
+        
+    </script>
+</body>
+</html>
